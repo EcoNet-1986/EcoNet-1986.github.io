@@ -91,7 +91,11 @@ function loadFeed(path) {
         let html = "";
         snap.forEach(c => {
             const p = c.val();
-            html = `<div class="post"><strong>${p.name}</strong> <span class="badge badge-${p.role}">${p.role}</span><br>${render(p.text)}</div>` + html;
+            html = `<div class="post">
+                        <strong>${escapeHTML(p.name)}</strong>
+                        <span class="badge badge-${p.role}">${p.role}</span><br>
+                        ${render(p.text)}
+                    </div>` + html;
         });
         document.getElementById('feed-content').innerHTML = html;
     });
@@ -112,9 +116,19 @@ window.toggleProfile = () => {
     o.style.display = isHidden ? 'block' : 'none';
 };
 
-function render(text) {
-    return text.replace(/\[IMG\](.*?)\[\/IMG\]/g, '<img src="$1" class="media-preview">')
-               .replace(/\[VID\](.*?)\[\/VID\]/g, '<video src="$1" controls class="media-preview"></video>');
+function render(text){
+    text = escapeHTML(text); // nettoyer tout le texte utilisateur
+
+    // remplacer uniquement [IMG] et [VID] par du HTML contrôlé
+    text = text.replace(/\[IMG\](.*?)\[\/IMG\]/g, (match, src) => {
+        return `<img src="${src}" class="media-preview" />`;
+    });
+
+    text = text.replace(/\[VID\](.*?)\[\/VID\]/g, (match, src) => {
+        return `<video src="${src}" controls class="media-preview"></video>`;
+    });
+
+    return text;
 }
 
 window.handleFile = (input, targetId) => {
@@ -127,3 +141,15 @@ window.handleFile = (input, targetId) => {
     };
     reader.readAsDataURL(file);
 };
+// Fonction pour sécuriser tout texte contre XSS
+function escapeHTML(text){
+    const div = document.createElement('div');
+    div.textContent = text;  // transforme tout en texte sûr
+    return div.innerHTML;
+}
+function displayChatMessage(msg, senderRole, isMe){
+    const htmlMsg = `<div class="msg ${isMe ? 'msg-me' : 'msg-them'}">
+        <strong>${escapeHTML(msg.name)}</strong>: ${render(msg.text)}
+    </div>`;
+    document.getElementById('chat-messages').innerHTML += htmlMsg;
+}
