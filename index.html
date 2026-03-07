@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121212">
-	<meta name="mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>EcoNet</title>
 </head>
 <body>
@@ -21,24 +21,23 @@
         <button class="btn btn-gray" style="width:100%; margin-top:10px;" onclick="toggleProfile()">Fermer</button>
     </div>
 
-    <div id="screen-login" class="box">
-        <h1 style="color:var(--primary)">EcoNet</h1>
-        <input type="text" id="login-id" placeholder="Identifiant">
-        <input type="password" id="login-mdp" placeholder="Mot de passe">
-        <button onclick="doLogin()" class="btn btn-blue" style="width:100%; margin-top:10px;">Entrer</button>
-        <button onclick="showSignup()" class="btn btn-green" style="width:100%; margin-top:10px;">Créer un compte</button>
+    <div id="screen-login" class="box" style="display:none; text-align: center;">
+        <h1 style="color:var(--primary); font-size: 2.5em; margin-bottom: 10px;">EcoNet</h1>
+        <p style="color: #666; margin-bottom: 30px;">Espace scolaire sécurisé</p>
+        
+        <button onclick="doLogin()" class="btn-google">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google">
+            Continuer avec Google
+        </button>
+
+        <p style="font-size: 0.8em; color: #999; margin-top: 20px;">
+            Utilise ton compte école ou Gmail pour te connecter.
+        </p>
     </div>
 
-    <div id="screen-signup" class="box" style="display:none;">
-        <h1>Inscription</h1>
-        <select id="signup-role"><option value="élève">Élève</option><option value="professeur">Professeur</option><option value="directeur">Directeur</option><option value="parent">Parent</option></select>
-        <input type="text" id="signup-id" placeholder="ID unique">
-        <input type="password" id="signup-mdp" placeholder="MDP">
-        <button onclick="doSignup()" class="btn btn-green" style="width:100%">Valider</button>
-        <button onclick="showLogin()" class="btn btn-gray" style="width:100%; margin-top:10px;">Retour</button>
-    </div>
+    <div id="screen-signup" style="display:none;"></div>
 
-    <div id="screen-app">
+    <div id="screen-app" style="display:none;">
         <div class="nav-bar">
             <strong>EcoNet</strong>
             <button class="btn btn-gray" onclick="toggleProfile()">👤 Mon Profil</button>
@@ -76,21 +75,16 @@
             </div>
         </div>
     </div>
+
     <script type="module" src="script.js"></script>
     <script>
-	  // Enregistrement silencieux du Service Worker
-	  if ('serviceWorker' in navigator) {
-		window.addEventListener('load', () => {
-		  navigator.serviceWorker.register('./sw.js').then(reg => {
-			reg.update();
-		  }).catch(() => {
-			/* On ne fait rien en cas d'erreur pour rester discret */
-		  });
-		});
-	  }
-
-	  // Optionnel : Nettoyer la console au chargement (si d'autres scripts écrivent dedans)
-	  // console.clear(); 
-	</script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    reg.update();
+                }).catch(() => {});
+            });
+        }
+    </script>
 </body>
 </html>
