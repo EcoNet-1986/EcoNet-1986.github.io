@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+	<meta name="mobile-web-app-capable" content="yes">
+    <title>EcoNet</title>
+</head>
+<body>
+
+    <div id="overlay" class="overlay" onclick="toggleProfile()"></div>
+    <div id="modal-profile" class="box" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100;">
+        <h2 id="prof-name">Profil</h2>
+        <div id="prof-badge"></div>
+        <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+        <button class="btn btn-red" style="width:100%" onclick="logout()">Se déconnecter</button>
+        <button class="btn btn-gray" style="width:100%; margin-top:10px;" onclick="toggleProfile()">Fermer</button>
+    </div>
+
+    <div id="screen-login" class="box">
+        <h1 style="color:var(--primary)">EcoNet</h1>
+        <input type="text" id="login-id" placeholder="Identifiant">
+        <input type="password" id="login-mdp" placeholder="Mot de passe">
+        <button onclick="doLogin()" class="btn btn-blue" style="width:100%; margin-top:10px;">Entrer</button>
+        <button onclick="showSignup()" class="btn btn-green" style="width:100%; margin-top:10px;">Créer un compte</button>
+    </div>
+
+    <div id="screen-signup" class="box" style="display:none;">
+        <h1>Inscription</h1>
+        <select id="signup-role"><option value="élève">Élève</option><option value="professeur">Professeur</option><option value="directeur">Directeur</option><option value="parent">Parent</option></select>
+        <input type="text" id="signup-id" placeholder="ID unique">
+        <input type="password" id="signup-mdp" placeholder="MDP">
+        <button onclick="doSignup()" class="btn btn-green" style="width:100%">Valider</button>
+        <button onclick="showLogin()" class="btn btn-gray" style="width:100%; margin-top:10px;">Retour</button>
+    </div>
+
+    <div id="screen-app">
+        <div class="nav-bar">
+            <strong>EcoNet</strong>
+            <button class="btn btn-gray" onclick="toggleProfile()">👤 Mon Profil</button>
+        </div>
+
+        <div class="tabs">
+            <div onclick="switchMainTab('posts-public')" class="tab active" id="tab-posts-public">🏠 Mur</div>
+            <div onclick="switchMainTab('posts-exercises')" class="tab" id="tab-posts-exercises">📚 Cours</div>
+            <div onclick="switchMainTab('posts-announcements')" class="tab" id="tab-posts-announcements">📢 Info</div>
+            <div onclick="switchMainTab('posts-parents')" class="tab" id="tab-posts-parents" style="display:none;">👨‍👩‍👧 Espace Parents</div>
+            <div onclick="switchMainTab('posts-staff')" class="tab tab-staff" id="tab-posts-staff" style="display:none;">☕ Salle des Profs</div>
+            <div onclick="switchMainTab('chat')" class="tab" id="tab-chat">💬 Chat</div>
+        </div>
+
+        <div id="editor-container" class="post" style="border:none;">
+            <textarea id="post-text" placeholder="Écrire un message..."></textarea>
+            <div style="display:flex; justify-content: space-between; align-items: center;">
+                <label style="cursor:pointer; font-size: 20px;">🖼️ <input type="file" style="display:none" accept="image/*,video/*" onchange="handleFile(this, 'post-text')"></label>
+                <button onclick="sendPost()" class="btn btn-blue">Publier</button>
+            </div>
+        </div>
+
+        <div id="view-feed"><div id="feed-content"></div></div>
+
+        <div id="view-chat" class="chat-layout" style="display:none;">
+            <div class="contact-list" id="contact-list"></div>
+            <div class="chat-area">
+                <div id="chat-header" style="padding:15px; border-bottom:1px solid #eee; font-weight:bold; background:white;">Contacts</div>
+                <div id="chat-messages"></div>
+                <div style="padding:15px; display:flex; gap:10px; background:white;">
+                    <label style="cursor:pointer; font-size:20px;">📎 <input type="file" style="display:none" onchange="handleFile(this, 'chat-input')"></label>
+                    <input type="text" id="chat-input" placeholder="Message privé..." style="margin:0;">
+                    <button onclick="sendPrivateMsg()" class="btn btn-blue">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="script.js"></script>
+    <script>
+	  // Enregistrement silencieux du Service Worker
+	  if ('serviceWorker' in navigator) {
+		window.addEventListener('load', () => {
+		  navigator.serviceWorker.register('./sw.js').then(reg => {
+			reg.update();
+		  }).catch(() => {
+			/* On ne fait rien en cas d'erreur pour rester discret */
+		  });
+		});
+	  }
+
+	  // Optionnel : Nettoyer la console au chargement (si d'autres scripts écrivent dedans)
+	  // console.clear(); 
+	</script>
+</body>
+</html>
