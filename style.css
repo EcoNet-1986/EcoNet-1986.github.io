@@ -58,3 +58,31 @@
 		}
 
 		.badge-parent { background: var(--parent); }
+		/* Style spécifique pour le bouton Google */
+		.btn-google {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 12px;
+			width: 100%;
+			padding: 12px;
+			background-color: white;
+			color: #3c4043;
+			border: 1px solid #dadce0;
+			border-radius: 8px;
+			font-weight: 600;
+			font-family: sans-serif;
+			cursor: pointer;
+			transition: background-color 0.2s, box-shadow 0.2s;
+			margin-top: 20px;
+		}
+
+		.btn-google:hover {
+			background-color: #f8f9fa;
+			box-shadow: 0 1px 3px rgba(60,64,67,0.3);
+		}
+
+		.btn-google img {
+			width: 20px;
+			height: 20px;
+		}
