@@ -16,27 +16,51 @@ const provider = new GoogleAuthProvider();
 
 let myId = "", myData = null, currentPath = "posts-public", selectedContactId = null;
 
+// --- CONNEXION AUTOMATIQUE ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
+        // L'utilisateur est déjà connecté avec Google
         const snap = await get(child(ref(db), `utilisateurs/${user.uid}`));
-
         if (snap.exists()) {
-            // Si l'utilisateur existe déjà
             myId = user.uid;
             myData = snap.val();
-            startApp();
+            startApp(); // Démarre l'application
         } else {
-            // Si c'est la première fois : choix du rôle
-            const rolesValides = ["eleve", "parent", "professeur", "directeur"];
-            let roleChoisi = "";
+            // Première connexion, utilisateur Google existant mais pas encore dans la DB
+            document.getElementById('screen-login').style.display = 'block';
+            document.getElementById('screen-app').style.display = 'none';
+        }
+    } else {
+        // Utilisateur pas connecté, afficher écran login
+        document.getElementById('screen-login').style.display = 'block';
+        document.getElementById('screen-app').style.display = 'none';
+    }
+});
 
-            while(!rolesValides.includes(roleChoisi)) {
+// --- BOUTON CONNEXION GOOGLE ---
+window.doLogin = async () => {
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        // Vérifie si l'utilisateur est déjà dans la base
+        const snap = await get(child(ref(db), `utilisateurs/${user.uid}`));
+        let roleChoisi;
+
+        if (!snap.exists()) {
+            // Première connexion : demander le rôle
+            const rolesValides = ["eleve", "parent", "professeur", "directeur"];
+            roleChoisi = "";
+            while(!rolesValides.includes(roleChoisi)){
                 roleChoisi = prompt("Quel est ton rôle ? (eleve, parent, professeur, directeur)");
-                if(roleChoisi) roleChoisi = roleChoisi.toLowerCase().trim();
-                if(!rolesValides.includes(roleChoisi)) alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
+                if(roleChoisi){
+                    roleChoisi = roleChoisi.toLowerCase().trim();
+                }
+                if(!rolesValides.includes(roleChoisi)){
+                    alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
+                }
             }
 
-            // Enregistrer les infos de l'utilisateur
             myData = {
                 nom: user.displayName,
                 role: roleChoisi,
@@ -44,18 +68,16 @@ onAuthStateChanged(auth, async (user) => {
                 email: user.email
             };
             await set(ref(db, `utilisateurs/${user.uid}`), myData);
-            myId = user.uid;
-
-            startApp();
+        } else {
+            myData = snap.val();
         }
 
-    } else {
-        // Pas connecté
-        document.getElementById('screen-login').style.display = 'block';
-        document.getElementById('screen-app').style.display = 'none';
+        myId = user.uid;
+        startApp();
+    } catch(err) {
+        alert("Erreur : " + err.message);
     }
-});
-window.doLogin = () => signInWithPopup(auth, provider).catch(err => alert("Erreur : " + err.message));
+};
 
 window.logout = () => {
     set(ref(db, `utilisateurs/${myId}/enLigne`), false);
