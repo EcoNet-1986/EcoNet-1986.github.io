@@ -200,12 +200,53 @@ window.sendPost = async () => {
     }
 };
 // --- CHAT ET PROFIL ---
-window.toggleProfile = () => {
+// Remplace ta fonction toggleProfile par celle-ci
+window.toggleProfile = async () => {
     const m = document.getElementById('modal-profile'), o = document.getElementById('overlay');
     const isHidden = m.style.display === 'none' || m.style.display === '';
-    m.style.display = isHidden ? 'block' : 'none';
-    o.style.display = isHidden ? 'block' : 'none';
+    
+    if (isHidden) {
+        m.style.display = 'block';
+        o.style.display = 'block';
+        updatePrivacyList(); // Charge les blocages
+    } else {
+        m.style.display = 'none';
+        o.style.display = 'none';
+    }
 };
+
+// Fonction pour afficher les salons et contacts bloqués
+async function updatePrivacyList() {
+    const salonsList = document.getElementById('list-muted-salons');
+    const contactsList = document.getElementById('list-muted-contacts');
+
+    // 1. Charger les Salons
+    const snapSalons = await get(ref(db, `utilisateurs/${myId}/salons_masques`));
+    salonsList.innerHTML = "";
+    if (snapSalons.exists()) {
+        Object.keys(snapSalons.val()).forEach(path => {
+            salonsList.innerHTML += `
+                <div class="blocked-item">
+                    <span>📍 ${path.replace('posts-', '')}</span>
+                    <button class="btn-unblock" onclick="toggleMutePath('${path}')">Réactiver</button>
+                </div>`;
+        });
+    } else { salonsList.innerHTML = "<span style='color:#999'>Aucun salon masqué.</span>"; }
+
+    // 2. Charger les Contacts
+    const snapContacts = await get(ref(db, `utilisateurs/${myId}/contacts_masques`));
+    contactsList.innerHTML = "";
+    if (snapContacts.exists()) {
+        for (let contactId in snapContacts.val()) {
+            const userSnap = await get(ref(db, `utilisateurs/${contactId}/nom`));
+            contactsList.innerHTML += `
+                <div class="blocked-item">
+                    <span>👤 ${userSnap.val() || 'Inconnu'}</span>
+                    <button class="btn-unblock" onclick="toggleMuteContact('${contactId}')">Réactiver</button>
+                </div>`;
+        }
+    } else { contactsList.innerHTML = "<span style='color:#999'>Aucun contact masqué.</span>"; }
+}
 
 function render(text){
     text = escapeHTML(text); // nettoyer tout le texte utilisateur
