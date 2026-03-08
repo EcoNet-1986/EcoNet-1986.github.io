@@ -27,6 +27,7 @@ onAuthStateChanged(auth, async (user) => {
         } else {
             // Premier passage : Choix du rôle
             let roleChoisi = prompt("Quel est ton rôle ? (eleve, professeur, parent, directeur)").toLowerCase();
+            // Premier passage : Choix du rôle
             const rolesValides = ["eleve", "parent", "professeur", "directeur"];
             let roleChoisi = "";
             
@@ -41,7 +42,9 @@ onAuthStateChanged(auth, async (user) => {
                     alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
                 }
             }
-
+        
+        myData = { nom: user.displayName, role: roleChoisi, enLigne: true, email: user.email };
+        await set(ref(db, `utilisateurs/${user.uid}`), myData);
     } else {
         document.getElementById('screen-login').style.display = 'block';
         document.getElementById('screen-app').style.display = 'none';
