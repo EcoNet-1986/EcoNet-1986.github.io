@@ -126,30 +126,63 @@ async function loadFeed(path) {
     const editor = document.getElementById('editor-container');
     const btnMute = document.getElementById('btn-mute');
     
-    off(ref(db, path)); // Double sécurité
+    // 1. Nettoyage de l'ancien écouteur pour éviter les doublons
+    off(ref(db, path)); 
 
+    // 2. Gestion du salon masqué (Mute)
     if (localMutedSalons[path]) {
         btnMute.innerText = "🚫";
-        feedDiv.innerHTML = `<div class="mute-screen">🔇<br>Salon masqué<br><button onclick="toggleMutePath('${path}')">Réactiver</button></div>`;
+        feedDiv.innerHTML = `<div class="mute-screen">🔇<br>Salon masqué<br><button class="btn btn-blue" onclick="toggleMutePath('${path}')">Réactiver</button></div>`;
         editor.style.display = 'none';
         return;
     }
 
     btnMute.innerText = "👁️";
-    editor.style.display = 'block';
 
+    // 3. LOGIQUE DES PERMISSIONS D'ÉCRITURE
+    let canWrite = true;
+
+    // Seuls les profs et le directeur écrivent dans "Cours"
+    if (path === 'posts-cours' && !['professeur', 'directeur'].includes(myData.role)) {
+        canWrite = false;
+    }
+    // Seul le directeur écrit dans "Info"
+    else if (path === 'posts-info' && myData.role !== 'directeur') {
+        canWrite = false;
+    }
+    // Seul le staff écrit dans "Staff" (déjà filtré par l'onglet, mais sécurité en plus)
+    else if (path === 'posts-staff' && !['professeur', 'directeur'].includes(myData.role)) {
+        canWrite = false;
+    }
+
+    // Afficher ou cacher l'éditeur selon les droits
+    editor.style.display = canWrite ? 'block' : 'none';
+
+    // 4. CHARGEMENT DES MESSAGES EN TEMPS RÉEL
     onValue(ref(db, path), (snap) => {
-        // VÉRIFICATION CRUCIALE : Si l'utilisateur a changé d'onglet entre temps, on ignore
-        if (window.currentPath !== path) return; 
+        // Sécurité : on vérifie qu'on est toujours sur le bon onglet
+        if (window.currentPath !== path) return;
 
         let html = "";
-        snap.forEach(c => {
-            const p = c.val();
+        snap.forEach(childSnap => {
+            const p = childSnap.val();
+            const msgId = childSnap.key;
+            
+            // Le directeur peut tout supprimer, l'auteur peut supprimer son propre message
             const canDelete = (p.senderId === myId || myData.role === 'directeur');
-            const delBtn = canDelete ? `<span onclick="deleteMsg('${path}', '${c.key}')" style="float:right; cursor:pointer; color:red;">🗑️</span>` : "";
-            html = `<div class="post">${delBtn}<strong>${escapeHTML(p.name)}</strong> <span class="badge badge-${p.role}">${p.role}</span><br>${render(p.text)}</div>` + html;
+            const delBtn = canDelete ? `<span onclick="deleteMsg('${path}', '${msgId}')" style="float:right; cursor:pointer; color:red; font-size:18px;">🗑️</span>` : "";
+            
+            html = `
+                <div class="post">
+                    ${delBtn}
+                    <strong>${escapeHTML(p.name)}</strong> 
+                    <span class="badge badge-${p.role}">${p.role}</span>
+                    <div style="margin-top:8px;">${render(p.text)}</div>
+                </div>
+            ` + html; // Nouveau message en haut
         });
-        feedDiv.innerHTML = html || "<p style='text-align:center; color:#999;'>Aucun message.</p>";
+
+        feedDiv.innerHTML = html || "<p style='text-align:center; color:#999; margin-top:20px;'>Aucun message dans ce salon.</p>";
     });
 }
 
