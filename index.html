@@ -55,7 +55,14 @@
         <div id="editor-container" class="post" style="border:none;">
             <textarea id="post-text" placeholder="Écrire un message..."></textarea>
             <div style="display:flex; justify-content: space-between; align-items: center;">
-                <label style="cursor:pointer; font-size: 20px;">🖼️ <input type="file" style="display:none" accept="image/*,video/*" onchange="handleFile(this, 'post-text')"></label>
+                <div style="display:flex; gap: 15px; align-items: center;">
+                    <label style="cursor:pointer; font-size: 20px;">🖼️ <input type="file" style="display:none" accept="image/*,video/*" onchange="handleFile(this, 'post-text')"></label>
+                    
+                    <button id="mic-btn" onclick="toggleRecord()" style="background:none; border:none; cursor:pointer; font-size: 20px;">🎤</button>
+                    
+                    <span id="recording-status" style="color:red; font-size:12px; display:none; font-weight:bold;">● Enregistrement...</span>
+                </div>
+                
                 <button onclick="sendPost()" class="btn btn-blue">Publier</button>
             </div>
         </div>
