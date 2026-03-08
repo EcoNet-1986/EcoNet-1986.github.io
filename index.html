@@ -14,30 +14,30 @@
 
     <div id="overlay" class="overlay" onclick="toggleProfile()"></div>
     <div id="modal-profile" class="box" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; max-height: 80vh; overflow-y: auto;">
-    <h2 id="prof-name">Profil</h2>
-    <div id="prof-badge"></div>
-    
-    <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
-    
-    <div id="privacy-settings" style="text-align: left;">
-        <h3 style="font-size: 14px; color: var(--primary); margin-bottom: 10px;">🛡️ Confidentialité</h3>
+        <h2 id="prof-name">Profil</h2>
+        <div id="prof-badge"></div>
         
-        <div id="blocked-salons" style="margin-bottom: 15px;">
-            <p style="font-size: 12px; font-weight: bold; margin-bottom: 5px;">Salons masqués :</p>
-            <div id="list-muted-salons" class="mini-list"></div>
+        <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
+        
+        <div id="privacy-settings" style="text-align: left;">
+            <h3 style="font-size: 14px; color: var(--primary); margin-bottom: 10px;">🛡️ Confidentialité</h3>
+            
+            <div id="blocked-salons" style="margin-bottom: 15px;">
+                <p style="font-size: 12px; font-weight: bold; margin-bottom: 5px;">Salons masqués :</p>
+                <div id="list-muted-salons" class="mini-list"></div>
+            </div>
+
+            <div id="blocked-contacts">
+                <p style="font-size: 12px; font-weight: bold; margin-bottom: 5px;">Contacts masqués :</p>
+                <div id="list-muted-contacts" class="mini-list"></div>
+            </div>
         </div>
 
-        <div id="blocked-contacts">
-            <p style="font-size: 12px; font-weight: bold; margin-bottom: 5px;">Contacts masqués :</p>
-            <div id="list-muted-contacts" class="mini-list"></div>
-        </div>
+        <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
+        
+        <button class="btn btn-red" style="width:100%" onclick="logout()">Se déconnecter</button>
+        <button class="btn btn-gray" style="width:100%; margin-top:10px;" onclick="toggleProfile()">Fermer</button>
     </div>
-
-    <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
-    
-    <button class="btn btn-red" style="width:100%" onclick="logout()">Se déconnecter</button>
-    <button class="btn btn-gray" style="width:100%; margin-top:10px;" onclick="toggleProfile()">Fermer</button>
-</div>
 
     <div id="screen-login" class="box" style="display:none; text-align: center;">
         <h1 style="color:var(--primary); font-size: 2.5em; margin-bottom: 10px;">EcoNet</h1>
@@ -53,8 +53,6 @@
         </p>
     </div>
 
-    <div id="screen-signup" style="display:none;"></div>
-
     <div id="screen-app" style="display:none;">
         <div class="nav-bar">
             <strong>EcoNet</strong>
@@ -63,10 +61,10 @@
 
         <div class="tabs">
             <div onclick="switchMainTab('posts-public')" class="tab active" id="tab-posts-public">🏠 Mur</div>
-            <div onclick="switchMainTab('posts-exercises')" class="tab" id="tab-posts-exercises">📚 Cours</div>
-            <div onclick="switchMainTab('posts-announcements')" class="tab" id="tab-posts-announcements">📢 Info</div>
-            <div onclick="switchMainTab('posts-parents')" class="tab" id="tab-posts-parents" style="display:none;">👨‍👩‍👧 Espace Parents</div>
-            <div onclick="switchMainTab('posts-staff')" class="tab tab-staff" id="tab-posts-staff" style="display:none;">☕ Salle des Profs</div>
+            <div onclick="switchMainTab('posts-cours')" class="tab" id="tab-posts-cours">📚 Cours</div>
+            <div onclick="switchMainTab('posts-info')" class="tab" id="tab-posts-info">📢 Info</div>
+            <div onclick="switchMainTab('posts-parents')" class="tab" id="tab-posts-parents" style="display:none;">👨‍👩‍👧 Parents</div>
+            <div onclick="switchMainTab('posts-staff')" class="tab tab-staff" id="tab-posts-staff" style="display:none;">☕ Staff</div>
             <div onclick="switchMainTab('chat')" class="tab" id="tab-chat">💬 Chat</div>
         </div>
 
@@ -74,26 +72,23 @@
             <textarea id="post-text" placeholder="Écrire un message..."></textarea>
             <div style="display:flex; justify-content: space-between; align-items: center;">
                 <div style="display:flex; gap: 15px; align-items: center;">
-                    <label style="cursor:pointer; font-size: 20px;">🖼️ <input type="file" style="display:none" accept="image/*,video/*" onchange="handleFile(this, 'post-text')"></label>
-                    
+                    <label style="cursor:pointer; font-size: 20px;">🖼️ <input type="file" style="display:none" accept="image/*,video/*,audio/*" onchange="handleFile(this, 'post-text')"></label>
                     <button id="mic-btn" onclick="toggleRecord()" style="background:none; border:none; cursor:pointer; font-size: 20px;">🎤</button>
-                    
-                    <span id="recording-status" style="color:red; font-size:12px; display:none; font-weight:bold;">● Enregistrement...</span>
+                    <span id="recording-status" style="color:red; font-size:11px; display:none; font-weight:bold;">● Enregistre...</span>
                 </div>
-                
                 <button onclick="sendPost()" class="btn btn-blue">Publier</button>
             </div>
         </div>
 
         <div id="view-feed">
             <div id="feed-header" style="padding: 5px 15px; display: flex; justify-content: flex-end; align-items: center; background: #f9f9f9; border-bottom: 1px solid #eee;">
-                <span id="mute-status-text" style="font-size: 12px; color: #888; margin-right: 10px;"></span>
-                <button id="btn-mute" onclick="toggleMutePath(currentPath)" style="background:none; border:none; cursor:pointer; font-size: 18px;" title="Masquer/Afficher ce salon">
+                <button id="btn-mute" onclick="toggleMutePath(window.currentPath)" style="background:none; border:none; cursor:pointer; font-size: 18px;">
                     👁️
                 </button>
             </div>
             <div id="feed-content"></div>
         </div>
+
         <div id="view-chat" class="chat-layout" style="display:none;">
             <div class="contact-list" id="contact-list"></div>
             <div class="chat-area">
@@ -112,9 +107,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(reg => {
-                    reg.update();
-                }).catch(() => {});
+                navigator.serviceWorker.register('./sw.js').then(reg => reg.update()).catch(() => {});
             });
         }
     </script>
