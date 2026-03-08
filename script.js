@@ -61,21 +61,22 @@ window.doLogin = async () => {
                 }
             }
 
-            // Vérifier le code si ce n'est pas un élève
-            const codes = {
-                parent: "codeparent",
-                professeur: "codeprof",
-                directeur: "codedirecteur"
+            
             };
 
             if(roleChoisi !== "eleve") {
-                let codeValide = prompt(`Entrez le code pour ${roleChoisi}`);
-                if(codeValide !== codes[roleChoisi]){
-                    alert("Code incorrect ! Vous ne pouvez pas créer ce compte.");
-                    await signOut(auth); // déconnecte l'utilisateur Google
-                    return; // stoppe la création du compte
+            let codeValide = false;
+            while(!codeValide) {
+                const codeSaisi = prompt(`Entrez le code pour ${roleChoisi}`);
+                const snapCode = await get(ref(db, `codes/${roleChoisi}`));
+        
+                if(snapCode.exists() && codeSaisi === snapCode.val()) {
+                    codeValide = true;
+                } else {
+                    alert("Code incorrect ! Réessayez.");
                 }
             }
+        }
 
             // Création du compte
             myData = {
