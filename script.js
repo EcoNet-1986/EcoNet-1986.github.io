@@ -132,27 +132,41 @@ window.switchMainTab = (path) => {
     } else {
         loadContacts();
     }
+    // À ajouter à la fin de window.switchMainTab
+    get(ref(db, `utilisateurs/${myId}/salons_masques/${path}`)).then(snap => {
+        const btn = document.getElementById('btn-mute'); // Assure-toi que l'ID existe dans ton HTML
+        if(btn) {
+            btn.innerText = snap.exists() ? "🚫" : "👁️";
+            btn.style.opacity = snap.exists() ? "0.5" : "1";
+        }
+    });
 };
 
 async function loadFeed(path) {
     const feedDiv = document.getElementById('feed-content');
+    const editor = document.getElementById('editor-container');
     
-    // VERIFICATION DU MASQUAGE
+    // 1. ARRÊTER l'écoute précédente pour éviter les conflits
+    off(ref(db, path));
+
+    // 2. VÉRIFIER LE MASQUAGE
     const snapMute = await get(ref(db, `utilisateurs/${myId}/salons_masques/${path}`));
     
     if (snapMute.exists()) {
-        // Si masqué, on affiche un message vide avec un bouton pour réactiver
+        // AFFICHAGE MODE MASQUÉ
         feedDiv.innerHTML = `
-            <div style="text-align:center; padding:50px; color:#666; background:#f5f5f5; border-radius:10px; margin:20px;">
+            <div style="text-align:center; padding:50px; color:#666; background:#f9f9f9; border-radius:15px; border: 2px dashed #ddd; margin:20px;">
                 <p style="font-size:40px; margin-bottom:10px;">🔇</p>
-                <p>Ce salon est masqué pour vous.</p><br>
-                <button onclick="toggleMutePath('${path}')" class="btn btn-blue">Afficher à nouveau</button>
+                <p style="font-weight:bold;">Ce salon est masqué</p>
+                <p style="font-size:13px; color:#999; margin-bottom:20px;">Vous ne recevrez plus de messages ici.</p>
+                <button onclick="toggleMutePath('${path}')" class="btn btn-blue">Réactiver le salon</button>
             </div>`;
-        document.getElementById('editor-container').style.display = 'none';
-        return; // ON ARRÊTE TOUT ICI
+        editor.style.display = 'none';
+        return; // On s'arrête là
     }
 
-    // SI NON MASQUÉ : On affiche les messages normalement (ton code actuel)
+    // 3. SI NON MASQUÉ : Activer l'écouteur en temps réel
+    editor.style.display = 'block'; // On remet l'éditeur
     onValue(ref(db, path), (snap) => {
         let html = "";
         snap.forEach(c => {
@@ -168,7 +182,7 @@ async function loadFeed(path) {
                         ${render(p.text)}
                     </div>` + html;
         });
-        feedDiv.innerHTML = html;
+        feedDiv.innerHTML = html || "<p style='text-align:center; color:#999; margin:20px;'>Aucun message pour le moment.</p>";
     });
 }
 window.sendPost = async () => {
