@@ -144,7 +144,14 @@ function loadFeed(path) {
         let html = "";
         snap.forEach(c => {
             const p = c.val();
+            const postId = c.key;
+            
+            // On affiche la poubelle si : c'est mon message OU je suis directeur
+            const canDelete = (p.senderId === myId || myData.role === 'directeur');
+            const deleteBtn = canDelete ? `<span onclick="deleteMsg('${path}', '${postId}')" style="float:right; cursor:pointer; color:red; font-size:14px;">🗑️</span>` : "";
+
             html = `<div class="post">
+                        ${deleteBtn}
                         <strong>${escapeHTML(p.name)}</strong>
                         <span class="badge badge-${p.role}">${p.role}</span><br>
                         ${render(p.text)}
@@ -153,14 +160,14 @@ function loadFeed(path) {
         document.getElementById('feed-content').innerHTML = html;
     });
 }
-
 window.sendPost = async () => {
     const val = document.getElementById('post-text').value;
     if (!val.trim()) return;
 
     try {
-        // 1. On publie dans l'onglet actuel (que ce soit posts-exercises, posts-staff, etc.)
+        // 1. On publie avec le senderId pour permettre la suppression ciblée
         await push(ref(db, currentPath), { 
+            senderId: myId,      // <--- TRÈS IMPORTANT : ajoute cette ligne
             name: myData.nom, 
             role: myData.role, 
             text: val,
@@ -169,8 +176,7 @@ window.sendPost = async () => {
 
         document.getElementById('post-text').value = "";
 
-        // 2. NETTOYAGE AUTOMATIQUE de l'onglet en cours
-        // Cette ligne va nettoyer l'onglet où tu viens d'écrire !
+        // 2. NETTOYAGE AUTOMATIQUE
         autoPurge(currentPath);
 
     } catch (e) {
@@ -217,9 +223,13 @@ function escapeHTML(text){
     div.textContent = text;  // transforme tout en texte sûr
     return div.innerHTML;
 }
-function displayChatMessage(msg, senderRole, isMe){
+function displayChatMessage(msg, msgId, chatId, isMe){
+    // Le directeur ne peut supprimer QUE ses propres messages ici (isMe)
+    const deleteBtn = isMe ? `<span onclick="deleteMsg('messages_prives/${chatId}', '${msgId}')" style="cursor:pointer; margin-left:10px; color:red; font-size:11px; opacity:0.7;">[Supprimer]</span>` : "";
+
     const htmlMsg = `<div class="msg ${isMe ? 'msg-me' : 'msg-them'}">
         <strong>${escapeHTML(msg.name)}</strong>: ${render(msg.text)}
+        ${deleteBtn}
     </div>`;
     document.getElementById('chat-messages').innerHTML += htmlMsg;
 }
@@ -249,15 +259,16 @@ window.selectContact = (id, nom) => {
     document.getElementById('chat-header').innerText = "Chat avec " + nom;
     document.getElementById('chat-messages').innerHTML = "";
     
-    // On crée un ID de chat unique (le plus petit ID en premier pour que ce soit le même pour les deux)
     const chatId = myId < id ? `${myId}_${id}` : `${id}_${myId}`;
     
-    off(ref(db, `messages_prives/${chatId}`)); // Nettoie l'ancien écouteur
+    off(ref(db, `messages_prives/${chatId}`)); 
     onValue(ref(db, `messages_prives/${chatId}`), (snap) => {
         document.getElementById('chat-messages').innerHTML = "";
         snap.forEach(m => {
             const msg = m.val();
-            displayChatMessage(msg, msg.role, msg.senderId === myId);
+            const msgId = m.key; // On récupère la clé du message
+            // On passe msgId et chatId à la fonction d'affichage
+            displayChatMessage(msg, msgId, chatId, msg.senderId === myId);
         });
     });
 };
@@ -342,5 +353,14 @@ window.toggleRecord = async () => {
     } else {
         mediaRecorder.stop();
         mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    }
+};
+window.deleteMsg = async (path, id) => {
+    if (confirm("Supprimer ce message définitivement ?")) {
+        try {
+            await set(ref(db, `${path}/${id}`), null);
+        } catch (e) {
+            alert("Erreur de permission");
+        }
     }
 };
