@@ -43,48 +43,53 @@ window.doLogin = async () => {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
 
+        // Vérifie si l'utilisateur existe déjà
         const snap = await get(child(ref(db), `utilisateurs/${user.uid}`));
         let roleChoisi;
 
         if (!snap.exists()) {
-            // Demande du rôle
+            // Première connexion : demander le rôle
             const rolesValides = ["eleve", "parent", "professeur", "directeur"];
             roleChoisi = "";
-            while(!rolesValides.includes(roleChoisi)){
+            while (!rolesValides.includes(roleChoisi)) {
                 roleChoisi = prompt("Quel est ton rôle ? (eleve, parent, professeur, directeur)");
-                if(roleChoisi) roleChoisi = roleChoisi.toLowerCase().trim();
-                if(!rolesValides.includes(roleChoisi)) alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
+                if (roleChoisi) roleChoisi = roleChoisi.toLowerCase().trim();
+                if (!rolesValides.includes(roleChoisi)) alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
             }
 
-            // Vérification du code pour les rôles protégés
+            // Vérifier le code si ce n'est pas un élève
             const codes = {
                 parent: "codeparent",
                 professeur: "codeprof",
                 directeur: "codedirecteur"
             };
 
-            if(roleChoisi !== "eleve") {
-                let codeValide = prompt(`Entrez le code pour ${roleChoisi}`);
-                if(codeValide !== codes[roleChoisi]){
+            if (roleChoisi !== "eleve") {
+                const codeValide = prompt(`Entrez le code pour ${roleChoisi}`);
+                if (codeValide !== codes[roleChoisi]) {
                     alert("Code incorrect ! Vous ne pouvez pas créer ce compte.");
-                    await signOut(auth);
+                    await signOut(auth); // déconnecte l'utilisateur Google
                     return;
                 }
             }
 
             // Création du compte
-            myData = { nom: user.displayName, role: roleChoisi, enLigne: true, email: user.email };
+            myData = {
+                nom: user.displayName,
+                role: roleChoisi,
+                enLigne: true,
+                email: user.email
+            };
             await set(ref(db, `utilisateurs/${user.uid}`), myData);
 
         } else {
-            // Si déjà existant
             myData = snap.val();
         }
 
         myId = user.uid;
         startApp();
 
-    } catch(err) {
+    } catch (err) {
         alert("Erreur : " + err.message);
     }
 };
