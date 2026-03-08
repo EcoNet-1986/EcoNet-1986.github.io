@@ -14,7 +14,9 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-let myId = "", myData = null, currentPath = "posts-public", selectedContactId = null;
+// On attache currentPath à window pour que le HTML puisse le lire
+window.currentPath = "posts-public"; 
+let myId = "", myData = null, selectedContactId = null;
 
 // --- CONNEXION AUTOMATIQUE ---
 onAuthStateChanged(auth, async (user) => {
@@ -119,27 +121,18 @@ function startApp() {
 
 // --- NAVIGATION ---
 window.switchMainTab = (path) => {
-    // ... tes vérifications de rôle existantes ...
-    
-    currentPath = path;
+    window.currentPath = path; // Mise à jour globale
     
     // Mise à jour visuelle des onglets
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('tab-'+path).classList.add('active');
+    const activeTab = document.getElementById('tab-' + path);
+    if (activeTab) activeTab.classList.add('active');
 
     if (path !== 'chat') {
-        loadFeed(path); // <--- C'est cet appel qui va tout déclencher
+        loadFeed(path); 
     } else {
         loadContacts();
     }
-    // À ajouter à la fin de window.switchMainTab
-    get(ref(db, `utilisateurs/${myId}/salons_masques/${path}`)).then(snap => {
-        const btn = document.getElementById('btn-mute'); // Assure-toi que l'ID existe dans ton HTML
-        if(btn) {
-            btn.innerText = snap.exists() ? "🚫" : "👁️";
-            btn.style.opacity = snap.exists() ? "0.5" : "1";
-        }
-    });
 };
 
 async function loadFeed(path) {
