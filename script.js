@@ -54,7 +54,9 @@ window.doLogin = async () => {
             while (!rolesValides.includes(roleChoisi)) {
                 roleChoisi = prompt("Quel est ton rôle ? (eleve, parent, professeur, directeur)");
                 if (roleChoisi) roleChoisi = roleChoisi.toLowerCase().trim();
-                if (!rolesValides.includes(roleChoisi)) alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
+                if (!rolesValides.includes(roleChoisi)) {
+                    alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
+                }
             }
 
             // Vérifier le code si ce n'est pas un élève
@@ -83,9 +85,11 @@ window.doLogin = async () => {
             await set(ref(db, `utilisateurs/${user.uid}`), myData);
 
         } else {
+            // Si l'utilisateur existe déjà
             myData = snap.val();
         }
 
+        // Sauvegarde de l'ID et démarrage de l'app
         myId = user.uid;
         startApp();
 
