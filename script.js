@@ -119,45 +119,40 @@ function startApp() {
 
 // --- NAVIGATION ---
 window.switchMainTab = (path) => {
-    if (path === 'posts-staff' && !['professeur', 'directeur'].includes(myData.role)) return alert("Accès réservé !");
-    if (currentPath) off(ref(db, currentPath));
-    currentPath = path;
-    const isChat = (path === 'chat');
+    // ... tes vérifications de rôle existantes ...
     
-    document.getElementById('view-feed').style.display = isChat ? 'none' : 'block';
-    document.getElementById('view-chat').style.display = isChat ? 'grid' : 'none';
+    currentPath = path;
+    
+    // Mise à jour visuelle des onglets
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById('tab-'+path).classList.add('active');
-    
-    if (!isChat) {
-        let canWrite = (path === 'posts-public') || (path === 'posts-parents' && myData.role !== 'eleve') || (myData.role === 'directeur' || myData.role === 'professeur');
-        document.getElementById('editor-container').style.display = canWrite ? 'block' : 'none';
-        document.getElementById('feed-content').innerHTML = "";
-        loadFeed(path);
+
+    if (path !== 'chat') {
+        loadFeed(path); // <--- C'est cet appel qui va tout déclencher
     } else {
         loadContacts();
     }
 };
 
 async function loadFeed(path) {
-    // 1. On vérifie si tu as bloqué ce salon
-    const snapMute = await get(ref(db, `utilisateurs/${myId}/salons_masques/${path}`));
-    const isMuted = snapMute.exists();
-
     const feedDiv = document.getElementById('feed-content');
-
-    if (isMuted) {
+    
+    // VERIFICATION DU MASQUAGE
+    const snapMute = await get(ref(db, `utilisateurs/${myId}/salons_masques/${path}`));
+    
+    if (snapMute.exists()) {
+        // Si masqué, on affiche un message vide avec un bouton pour réactiver
         feedDiv.innerHTML = `
-            <div style="text-align:center; padding:20px; color:gray;">
-                <p>🔇 Vous avez masqué ce salon.</p>
-                <button onclick="toggleMutePath('${path}')" class="btn">Réactiver les messages</button>
+            <div style="text-align:center; padding:50px; color:#666; background:#f5f5f5; border-radius:10px; margin:20px;">
+                <p style="font-size:40px; margin-bottom:10px;">🔇</p>
+                <p>Ce salon est masqué pour vous.</p><br>
+                <button onclick="toggleMutePath('${path}')" class="btn btn-blue">Afficher à nouveau</button>
             </div>`;
-        // On cache aussi l'éditeur pour ne pas poster dans un salon masqué
         document.getElementById('editor-container').style.display = 'none';
-        return; 
+        return; // ON ARRÊTE TOUT ICI
     }
 
-    // 2. Si non bloqué, on affiche normalement (ton code existant)
+    // SI NON MASQUÉ : On affiche les messages normalement (ton code actuel)
     onValue(ref(db, path), (snap) => {
         let html = "";
         snap.forEach(c => {
@@ -431,19 +426,18 @@ window.deleteMsg = async (path, id) => {
     }
 };
 window.toggleMutePath = async (path) => {
-    // On crée une référence vers tes blocages personnels
+    if(!path) return;
     const muteRef = ref(db, `utilisateurs/${myId}/salons_masques/${path}`);
     const snap = await get(muteRef);
 
     if (snap.exists()) {
-        await set(muteRef, null); // On débloque (supprime du dossier)
-        alert("Salon réactivé !");
+        await set(muteRef, null); // On réactive
     } else {
-        await set(muteRef, true); // On bloque
-        alert("Ce salon est maintenant masqué pour vous.");
+        await set(muteRef, true); // On masque
     }
-    // On recharge l'onglet pour appliquer le changement immédiatement
-    switchMainTab(path);
+    
+    // ON FORCE LE RECHARGEMENT DU SALON
+    switchMainTab(path); 
 };
 window.toggleMuteContact = async (contactId) => {
     if (!contactId) return;
