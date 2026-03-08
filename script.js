@@ -139,16 +139,32 @@ window.switchMainTab = (path) => {
     }
 };
 
-function loadFeed(path) {
+async function loadFeed(path) {
+    // 1. On vérifie si tu as bloqué ce salon
+    const snapMute = await get(ref(db, `utilisateurs/${myId}/salons_masques/${path}`));
+    const isMuted = snapMute.exists();
+
+    const feedDiv = document.getElementById('feed-content');
+
+    if (isMuted) {
+        feedDiv.innerHTML = `
+            <div style="text-align:center; padding:20px; color:gray;">
+                <p>🔇 Vous avez masqué ce salon.</p>
+                <button onclick="toggleMutePath('${path}')" class="btn">Réactiver les messages</button>
+            </div>`;
+        // On cache aussi l'éditeur pour ne pas poster dans un salon masqué
+        document.getElementById('editor-container').style.display = 'none';
+        return; 
+    }
+
+    // 2. Si non bloqué, on affiche normalement (ton code existant)
     onValue(ref(db, path), (snap) => {
         let html = "";
         snap.forEach(c => {
             const p = c.val();
             const postId = c.key;
-            
-            // On affiche la poubelle si : c'est mon message OU je suis directeur
             const canDelete = (p.senderId === myId || myData.role === 'directeur');
-            const deleteBtn = canDelete ? `<span onclick="deleteMsg('${path}', '${postId}')" style="float:right; cursor:pointer; color:red; font-size:14px;">🗑️</span>` : "";
+            const deleteBtn = canDelete ? `<span onclick="deleteMsg('${path}', '${postId}')" style="float:right; cursor:pointer; color:red;">🗑️</span>` : "";
 
             html = `<div class="post">
                         ${deleteBtn}
@@ -157,7 +173,7 @@ function loadFeed(path) {
                         ${render(p.text)}
                     </div>` + html;
         });
-        document.getElementById('feed-content').innerHTML = html;
+        feedDiv.innerHTML = html;
     });
 }
 window.sendPost = async () => {
@@ -363,4 +379,19 @@ window.deleteMsg = async (path, id) => {
             alert("Erreur de permission");
         }
     }
+};
+window.toggleMutePath = async (path) => {
+    // On crée une référence vers tes blocages personnels
+    const muteRef = ref(db, `utilisateurs/${myId}/salons_masques/${path}`);
+    const snap = await get(muteRef);
+
+    if (snap.exists()) {
+        await set(muteRef, null); // On débloque (supprime du dossier)
+        alert("Salon réactivé !");
+    } else {
+        await set(muteRef, true); // On bloque
+        alert("Ce salon est maintenant masqué pour vous.");
+    }
+    // On recharge l'onglet pour appliquer le changement immédiatement
+    switchMainTab(path);
 };
