@@ -251,17 +251,26 @@ function displayChatMessage(msg, msgId, chatId, isMe){
 }
 // --- FONCTION POUR CHARGER LES CONTACTS ---
 function loadContacts() {
-    onValue(ref(db, 'utilisateurs'), (snap) => {
+    onValue(ref(db, 'utilisateurs'), async (snap) => {
+        // On récupère tes blocages d'abord
+        const myMutesSnap = await get(ref(db, `utilisateurs/${myId}/contacts_masques`));
+        const myMutes = myMutesSnap.exists() ? myMutesSnap.val() : {};
+
         let html = "";
         snap.forEach(childSnap => {
             const user = childSnap.val();
             const userId = childSnap.key;
-            if (userId !== myId) { // Ne pas s'afficher soi-même
+
+            // SI le contact n'est pas moi ET qu'il n'est pas masqué
+            if (userId !== myId && !myMutes[userId]) { 
                 const statusClass = user.enLigne ? 'online' : 'offline';
                 html += `
-                <div class="contact-item" onclick="selectContact('${userId}', '${user.nom}')">
-                    <div class="status-dot" style="background: var(--${statusClass})"></div>
-                    ${escapeHTML(user.nom)} <span class="badge badge-${user.role}">${user.role}</span>
+                <div class="contact-item" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div onclick="selectContact('${userId}', '${user.nom}')" style="flex:1;">
+                        <div class="status-dot" style="background: var(--${statusClass})"></div>
+                        ${escapeHTML(user.nom)}
+                    </div>
+                    <button onclick="toggleMuteContact('${userId}')" style="background:none; border:none; cursor:pointer; font-size:12px;">🚫</button>
                 </div>`;
             }
         });
@@ -394,4 +403,25 @@ window.toggleMutePath = async (path) => {
     }
     // On recharge l'onglet pour appliquer le changement immédiatement
     switchMainTab(path);
+};
+window.toggleMuteContact = async (contactId) => {
+    if (!contactId) return;
+    
+    const muteRef = ref(db, `utilisateurs/${myId}/contacts_masques/${contactId}`);
+    const snap = await get(muteRef);
+
+    if (snap.exists()) {
+        await set(muteRef, null); // Débloquer le contact
+        alert("Discussion réactivée !");
+    } else {
+        const confirmer = confirm("Masquer cette discussion ?");
+        if (confirmer) {
+            await set(muteRef, true); // Masquer le contact
+        }
+    }
+    // On rafraîchit la liste des contacts pour appliquer le changement
+    loadContacts(); 
+    // On vide l'écran de chat
+    document.getElementById('chat-messages').innerHTML = "";
+    document.getElementById('chat-header').innerText = "Discussion masquée";
 };
