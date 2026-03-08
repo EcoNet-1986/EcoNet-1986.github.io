@@ -44,27 +44,34 @@ window.doLogin = async () => {
         const user = result.user;
 
         // Vérifie si l'utilisateur existe déjà
-        const snap = await get(child(ref(db), `utilisateurs/${user.uid}`));
+        const snapUser = await get(child(ref(db), `utilisateurs/${user.uid}`));
         let roleChoisi;
 
-        if (!snap.exists()) {
-            // Première connexion : demander le rôle
+        if (!snapUser.exists()) {
+            // Premier passage : demander le rôle
             const rolesValides = ["eleve", "parent", "professeur", "directeur"];
             roleChoisi = "";
-            while (!rolesValides.includes(roleChoisi)) {
+
+            while(!rolesValides.includes(roleChoisi)){
                 roleChoisi = prompt("Quel est ton rôle ? (eleve, parent, professeur, directeur)");
-                if (roleChoisi) roleChoisi = roleChoisi.toLowerCase().trim();
-                if (!rolesValides.includes(roleChoisi)) {
+                if(roleChoisi){
+                    roleChoisi = roleChoisi.toLowerCase().trim();
+                }
+                if(!rolesValides.includes(roleChoisi)){
                     alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
                 }
             }
 
-            if (roleChoisi !== "eleve") {
-                const codeValide = prompt(`Entrez le code pour ${roleChoisi}`);
-                if (codeValide !== codes[roleChoisi]) {
+            // Si ce n'est pas un élève, vérifier le code dans Firebase
+            if(roleChoisi !== "eleve") {
+                const snapCodes = await get(ref(db, `codes/${roleChoisi}`));
+                const codeCorrect = snapCodes.exists() ? snapCodes.val() : null;
+
+                let codeValide = prompt(`Entrez le code pour ${roleChoisi}`);
+                if(codeValide !== codeCorrect){
                     alert("Code incorrect ! Vous ne pouvez pas créer ce compte.");
                     await signOut(auth); // déconnecte l'utilisateur Google
-                    return;
+                    return; // stoppe la création du compte
                 }
             }
 
@@ -78,30 +85,17 @@ window.doLogin = async () => {
             await set(ref(db, `utilisateurs/${user.uid}`), myData);
 
         } else {
-            // Si l'utilisateur existe déjà
-            myData = snap.val();
-        }
-
-        // Sauvegarde de l'ID et démarrage de l'app
-        myId = user.uid;
-        startApp();
-
-    } catch (err) {
-        alert("Erreur : " + err.message);
-    }
-};
-            await set(ref(db, `utilisateurs/${user.uid}`), myData);
-
-        } else {
-            myData = snap.val();
+            myData = snapUser.val();
         }
 
         myId = user.uid;
         startApp();
+
     } catch(err) {
         alert("Erreur : " + err.message);
     }
 };
+            await set(ref(db, `utilisateurs/${user.uid}`), myData);
 
 window.logout = () => {
     set(ref(db, `utilisateurs/${myId}/enLigne`), false);
