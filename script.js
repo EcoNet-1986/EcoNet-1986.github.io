@@ -26,8 +26,6 @@ onAuthStateChanged(auth, async (user) => {
             startApp();
         } else {
             // Premier passage : Choix du rôle
-            let roleChoisi = prompt("Quel est ton rôle ? (eleve, professeur, parent, directeur)").toLowerCase();
-            // Premier passage : Choix du rôle
             const rolesValides = ["eleve", "parent", "professeur", "directeur"];
             let roleChoisi = "";
             
