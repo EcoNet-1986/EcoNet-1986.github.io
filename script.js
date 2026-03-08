@@ -25,24 +25,28 @@ onAuthStateChanged(auth, async (user) => {
             myData = snap.val();
             startApp();
         } else {
-            // Premier passage : Choix du rôle
-            const rolesValides = ["eleve", "parent", "professeur", "directeur"];
-            let roleChoisi = "";
-            
-            while(!rolesValides.includes(roleChoisi)){
-                roleChoisi = prompt("Quel est ton rôle ? (eleve, parent, professeur, directeur)");
-                
-                if(roleChoisi){
-                    roleChoisi = roleChoisi.toLowerCase().trim();
-                }
-            
-                if(!rolesValides.includes(roleChoisi)){
-                    alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
-                }
-            }
+        // Premier passage : Choix du rôle
+        const rolesValides = ["eleve", "parent", "professeur", "directeur"];
+        let roleChoisi = "";
         
+        while(!rolesValides.includes(roleChoisi)){
+            roleChoisi = prompt("Quel est ton rôle ? (eleve, parent, professeur, directeur)");
+            
+            if(roleChoisi){
+                roleChoisi = roleChoisi.toLowerCase().trim();
+            }
+    
+            if(!rolesValides.includes(roleChoisi)){
+                alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
+            }
+        }
+    
         myData = { nom: user.displayName, role: roleChoisi, enLigne: true, email: user.email };
+    
         await set(ref(db, `utilisateurs/${user.uid}`), myData);
+    
+        myId = user.uid;
+        startApp();
     } else {
         document.getElementById('screen-login').style.display = 'block';
         document.getElementById('screen-app').style.display = 'none';
