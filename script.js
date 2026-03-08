@@ -59,13 +59,6 @@ window.doLogin = async () => {
                 }
             }
 
-            // Vérifier le code si ce n'est pas un élève
-            const codes = {
-                parent: "codeparent",
-                professeur: "codeprof",
-                directeur: "codedirecteur"
-            };
-
             if (roleChoisi !== "eleve") {
                 const codeValide = prompt(`Entrez le code pour ${roleChoisi}`);
                 if (codeValide !== codes[roleChoisi]) {
