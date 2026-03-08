@@ -21,47 +21,40 @@ onAuthStateChanged(auth, async (user) => {
         const snap = await get(child(ref(db), `utilisateurs/${user.uid}`));
 
         if (snap.exists()) {
+            // Si l'utilisateur existe déjà
             myId = user.uid;
             myData = snap.val();
             startApp();
-
         } else {
-
-            // Premier passage : Choix du rôle
+            // Si c'est la première fois : choix du rôle
             const rolesValides = ["eleve", "parent", "professeur", "directeur"];
             let roleChoisi = "";
 
-            while(!rolesValides.includes(roleChoisi)){
+            while(!rolesValides.includes(roleChoisi)) {
                 roleChoisi = prompt("Quel est ton rôle ? (eleve, parent, professeur, directeur)");
-
-                if(roleChoisi){
-                    roleChoisi = roleChoisi.toLowerCase().trim();
-                }
-
-                if(!rolesValides.includes(roleChoisi)){
-                    alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
-                }
+                if(roleChoisi) roleChoisi = roleChoisi.toLowerCase().trim();
+                if(!rolesValides.includes(roleChoisi)) alert("Veuillez écrire seulement : eleve, parent, professeur ou directeur.");
             }
 
+            // Enregistrer les infos de l'utilisateur
             myData = {
                 nom: user.displayName,
                 role: roleChoisi,
                 enLigne: true,
                 email: user.email
             };
-
             await set(ref(db, `utilisateurs/${user.uid}`), myData);
-
             myId = user.uid;
+
             startApp();
         }
 
     } else {
+        // Pas connecté
         document.getElementById('screen-login').style.display = 'block';
         document.getElementById('screen-app').style.display = 'none';
     }
 });
-
 window.doLogin = () => signInWithPopup(auth, provider).catch(err => alert("Erreur : " + err.message));
 
 window.logout = () => {
