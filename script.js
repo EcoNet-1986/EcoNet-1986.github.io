@@ -154,13 +154,29 @@ function loadFeed(path) {
     });
 }
 
-window.sendPost = () => {
+window.sendPost = async () => {
     const val = document.getElementById('post-text').value;
     if (!val.trim()) return;
-    push(ref(db, currentPath), { name: myData.nom, role: myData.role, text: val });
-    document.getElementById('post-text').value = "";
-};
 
+    try {
+        // 1. On publie dans l'onglet actuel (que ce soit posts-exercises, posts-staff, etc.)
+        await push(ref(db, currentPath), { 
+            name: myData.nom, 
+            role: myData.role, 
+            text: val,
+            timestamp: Date.now() 
+        });
+
+        document.getElementById('post-text').value = "";
+
+        // 2. NETTOYAGE AUTOMATIQUE de l'onglet en cours
+        // Cette ligne va nettoyer l'onglet où tu viens d'écrire !
+        autoPurge(currentPath);
+
+    } catch (e) {
+        alert("Erreur : " + e.message);
+    }
+};
 // --- CHAT ET PROFIL ---
 window.toggleProfile = () => {
     const m = document.getElementById('modal-profile'), o = document.getElementById('overlay');
@@ -262,3 +278,28 @@ window.sendPrivateMsg = () => {
     
     document.getElementById('chat-input').value = "";
 };
+async function autoPurge(path) {
+    const postsRef = ref(db, path);
+    // On récupère tous les messages du dossier actuel
+    const snap = await get(postsRef);
+    
+    if (snap.exists()) {
+        let entries = [];
+        snap.forEach(child => {
+            entries.push({ id: child.key, data: child.val() });
+        });
+
+        // Si on dépasse 30 messages
+        if (entries.length > 30) {
+            // On trie pour être sûr d'avoir les plus anciens en premier
+            // (Même si Firebase le fait souvent par défaut avec les clés push)
+            const toDelete = entries.length - 30;
+            
+            for (let i = 0; i < toDelete; i++) {
+                // Suppression définitive du message trop vieux
+                await set(ref(db, `${path}/${entries[i].id}`), null);
+            }
+            console.log(`Auto-Purge : ${toDelete} messages supprimés pour faire de la place.`);
+        }
+    }
+}
