@@ -14,11 +14,12 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// Variables globales
 window.currentPath = "posts-public"; 
 let myId = "", myData = null, selectedContactId = null;
-let localMutedSalons = {}; // Cache pour éviter les "get" lents à chaque clic
+let localMutedSalons = {}; 
 
-// --- CONNEXION ---
+// --- AUTHENTIFICATION ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         const snap = await get(child(ref(db), `utilisateurs/${user.uid}`));
@@ -28,9 +29,11 @@ onAuthStateChanged(auth, async (user) => {
             startApp();
         } else {
             document.getElementById('screen-login').style.display = 'block';
+            document.getElementById('screen-app').style.display = 'none';
         }
     } else {
         document.getElementById('screen-login').style.display = 'block';
+        document.getElementById('screen-app').style.display = 'none';
     }
 });
 
@@ -39,6 +42,7 @@ window.doLogin = async () => {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
         const snapUser = await get(child(ref(db), `utilisateurs/${user.uid}`));
+        
         if (!snapUser.exists()) {
             const rolesValides = ["eleve", "parent", "professeur", "directeur"];
             let roleChoisi = "";
@@ -47,14 +51,19 @@ window.doLogin = async () => {
             }
             if(roleChoisi !== "eleve") {
                 const snapCodes = await get(ref(db, `codes/${roleChoisi}`));
-                if(prompt(`Code ${roleChoisi}`) !== snapCodes.val()) return signOut(auth);
+                if(prompt(`Code ${roleChoisi}`) !== snapCodes.val()) {
+                    await signOut(auth);
+                    return;
+                }
             }
             myData = { nom: user.displayName, role: roleChoisi, enLigne: true, email: user.email };
             await set(ref(db, `utilisateurs/${user.uid}`), myData);
-        } else { myData = snapUser.val(); }
+        } else { 
+            myData = snapUser.val(); 
+        }
         myId = user.uid;
         startApp();
-    } catch(err) { alert(err.message); }
+    } catch(err) { alert("Erreur: " + err.message); }
 };
 
 window.logout = () => {
@@ -62,12 +71,12 @@ window.logout = () => {
     signOut(auth).then(() => location.reload());
 };
 
-// --- DÉMARRAGE ---
+// --- INITIALISATION ---
 function startApp() {
     set(ref(db, `utilisateurs/${myId}/enLigne`), true);
     onDisconnect(ref(db, `utilisateurs/${myId}/enLigne`)).set(false);
     
-    // On écoute les salons masqués une seule fois pour tout le reste de la session
+    // Écoute permanente des salons masqués pour le cache
     onValue(ref(db, `utilisateurs/${myId}/salons_masques`), (snap) => {
         localMutedSalons = snap.val() || {};
         if(window.currentPath !== 'chat') loadFeed(window.currentPath);
@@ -83,10 +92,10 @@ function startApp() {
     window.switchMainTab('posts-public');
 }
 
-// --- NAVIGATION ---
+// --- NAVIGATION (RÈGLE LE BUG DE LA VIDÉO) ---
 window.switchMainTab = (path) => {
-    // 1. On coupe tout de suite les anciennes écoutes Firebase
-    if(window.currentPath && window.currentPath !== 'chat') off(ref(db, window.currentPath));
+    // 1. Désactive l'ancien écouteur pour éviter le mélange de données
+    off(ref(db, window.currentPath)); 
     
     window.currentPath = path;
     
@@ -96,12 +105,14 @@ window.switchMainTab = (path) => {
     const feedView = document.getElementById('view-feed');
     const chatView = document.getElementById('view-chat');
     const editor = document.getElementById('editor-container');
-    document.getElementById('feed-content').innerHTML = ""; // Vidage immédiat
+    
+    // Vide l'écran pour éviter de voir les messages du salon précédent
+    document.getElementById('feed-content').innerHTML = ""; 
 
     if (path === 'chat') {
         feedView.style.display = 'none';
         editor.style.display = 'none';
-        chatView.style.display = 'grid';
+        chatView.style.display = 'block';
         loadContacts();
     } else {
         chatView.style.display = 'none';
@@ -115,15 +126,11 @@ async function loadFeed(path) {
     const editor = document.getElementById('editor-container');
     const btnMute = document.getElementById('btn-mute');
     
-    off(ref(db, path)); // Nettoyage de sécurité
+    off(ref(db, path)); // Double sécurité
 
-    // Vérification instantanée via le cache local
     if (localMutedSalons[path]) {
         btnMute.innerText = "🚫";
-        feedDiv.innerHTML = `<div style="text-align:center; padding:50px; color:#666; background:#f9f9f9; border-radius:15px; margin:20px;">
-                                <p style="font-size:40px;">🔇</p><p>Salon masqué</p>
-                                <button onclick="toggleMutePath('${path}')" class="btn btn-blue">Réactiver</button>
-                             </div>`;
+        feedDiv.innerHTML = `<div class="mute-screen">🔇<br>Salon masqué<br><button onclick="toggleMutePath('${path}')">Réactiver</button></div>`;
         editor.style.display = 'none';
         return;
     }
@@ -132,8 +139,8 @@ async function loadFeed(path) {
     editor.style.display = 'block';
 
     onValue(ref(db, path), (snap) => {
-        // VERROU DE SÉCURITÉ : On vérifie qu'on est toujours sur le bon onglet
-        if (window.currentPath !== path) return;
+        // VÉRIFICATION CRUCIALE : Si l'utilisateur a changé d'onglet entre temps, on ignore
+        if (window.currentPath !== path) return; 
 
         let html = "";
         snap.forEach(c => {
@@ -142,19 +149,36 @@ async function loadFeed(path) {
             const delBtn = canDelete ? `<span onclick="deleteMsg('${path}', '${c.key}')" style="float:right; cursor:pointer; color:red;">🗑️</span>` : "";
             html = `<div class="post">${delBtn}<strong>${escapeHTML(p.name)}</strong> <span class="badge badge-${p.role}">${p.role}</span><br>${render(p.text)}</div>` + html;
         });
-        feedDiv.innerHTML = html || "<p style='text-align:center; color:#999; margin:20px;'>Aucun message ici.</p>";
+        feedDiv.innerHTML = html || "<p style='text-align:center; color:#999;'>Aucun message.</p>";
     });
 }
 
-// --- ACTIONS ---
+// --- ENVOI DE MESSAGES ---
 window.sendPost = async () => {
     const val = document.getElementById('post-text').value;
     if (!val.trim()) return;
-    await push(ref(db, window.currentPath), { 
-        senderId: myId, name: myData.nom, role: myData.role, text: val, timestamp: Date.now() 
-    });
-    document.getElementById('post-text').value = "";
-    autoPurge(window.currentPath);
+    try {
+        await push(ref(db, window.currentPath), { 
+            senderId: myId, name: myData.nom, role: myData.role, text: val, timestamp: Date.now() 
+        });
+        document.getElementById('post-text').value = "";
+        autoPurge(window.currentPath);
+    } catch(e) { alert("Erreur d'envoi"); }
+};
+
+// --- FONCTIONS SECONDAIRES ---
+function escapeHTML(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+function render(t){
+    t = escapeHTML(t);
+    t = t.replace(/\[AUD\](.*?)\[\/AUD\]/g, (m,s) => `<audio src="${s}" controls style="width:100%; height:30px;"></audio>`);
+    t = t.replace(/\[IMG\](.*?)\[\/IMG\]/g, (m,s) => `<img src="${s}" class="media-preview">`);
+    t = t.replace(/\[VID\](.*?)\[\/VID\]/g, (m,s) => `<video src="${s}" controls class="media-preview"></video>`);
+    return t;
+}
+
+window.deleteMsg = async (path, id) => {
+    if (confirm("Supprimer ce message ?")) await set(ref(db, `${path}/${id}`), null);
 };
 
 window.toggleMutePath = async (path) => {
@@ -172,7 +196,7 @@ function loadContacts() {
             const u = cs.val();
             if (cs.key !== myId && !mutes[cs.key]) {
                 html += `<div class="contact-item" onclick="selectContact('${cs.key}', '${u.nom}')">
-                            <div class="status-dot" style="background:var(--${u.enLigne?'online':'offline'})"></div> ${escapeHTML(u.nom)}
+                            <div class="status-dot ${u.enLigne?'online':'offline'}"></div> ${escapeHTML(u.nom)}
                          </div>`;
             }
         });
@@ -201,21 +225,6 @@ window.sendPrivateMsg = () => {
     const chatId = myId < selectedContactId ? `${myId}_${selectedContactId}` : `${selectedContactId}_${myId}`;
     push(ref(db, `messages_prives/${chatId}`), { senderId: myId, name: myData.nom, text: text, timestamp: Date.now() });
     document.getElementById('chat-input').value = "";
-};
-
-// --- UTILITAIRES ---
-function escapeHTML(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
-
-function render(t){
-    t = escapeHTML(t);
-    t = t.replace(/\[AUD\](.*?)\[\/AUD\]/g, (m,s) => `<audio src="${s}" controls style="width:100%; height:30px;"></audio>`);
-    t = t.replace(/\[IMG\](.*?)\[\/IMG\]/g, (m,s) => `<img src="${s}" style="max-width:100%; border-radius:10px; margin-top:5px;">`);
-    t = t.replace(/\[VID\](.*?)\[\/VID\]/g, (m,s) => `<video src="${s}" controls style="max-width:100%; border-radius:10px;"></video>`);
-    return t;
-}
-
-window.deleteMsg = async (path, id) => {
-    if (confirm("Supprimer ?")) await set(ref(db, `${path}/${id}`), null);
 };
 
 async function autoPurge(path) {
