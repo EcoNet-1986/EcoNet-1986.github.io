@@ -121,52 +121,79 @@ function startApp() {
 
 // --- NAVIGATION ---
 window.switchMainTab = (path) => {
-    window.currentPath = path; // Mise à jour globale
+    window.currentPath = path;
     
-    // Mise à jour visuelle des onglets
+    // 1. Visuel des onglets
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     const activeTab = document.getElementById('tab-' + path);
     if (activeTab) activeTab.classList.add('active');
 
-    if (path !== 'chat') {
-        loadFeed(path); 
-    } else {
+    // 2. Nettoyage immédiat de l'écran pour éviter les mélanges
+    const feedDiv = document.getElementById('feed-content');
+    const chatView = document.getElementById('view-chat');
+    const feedView = document.getElementById('view-feed');
+    const editor = document.getElementById('editor-container');
+
+    // On coupe TOUTES les écoutes Firebase sur le chemin précédent
+    off(ref(db, path)); 
+
+    if (path === 'chat') {
+        // MODE CHAT PRIVÉ
+        feedView.style.display = 'none';
+        editor.style.display = 'none';
+        chatView.style.display = 'block';
         loadContacts();
+    } else {
+        // MODE MUR PUBLIC / STAFF / PARENTS
+        chatView.style.display = 'none';
+        feedView.style.display = 'block';
+        // L'éditeur s'affichera seulement si le salon n'est pas masqué (géré dans loadFeed)
+        loadFeed(path);
     }
 };
 
 async function loadFeed(path) {
     const feedDiv = document.getElementById('feed-content');
     const editor = document.getElementById('editor-container');
+    const btnMute = document.getElementById('btn-mute');
     
-    // 1. ARRÊTER l'écoute précédente pour éviter les conflits
+    // 1. ARRÊTER toute écoute sur ce chemin avant de recommencer
+    // (Important pour ne pas avoir 2 écouteurs sur le même salon)
     off(ref(db, path));
 
     // 2. VÉRIFIER LE MASQUAGE
     const snapMute = await get(ref(db, `utilisateurs/${myId}/salons_masques/${path}`));
     
     if (snapMute.exists()) {
-        // AFFICHAGE MODE MASQUÉ
+        if(btnMute) btnMute.innerText = "🚫";
         feedDiv.innerHTML = `
             <div style="text-align:center; padding:50px; color:#666; background:#f9f9f9; border-radius:15px; border: 2px dashed #ddd; margin:20px;">
                 <p style="font-size:40px; margin-bottom:10px;">🔇</p>
                 <p style="font-weight:bold;">Ce salon est masqué</p>
-                <p style="font-size:13px; color:#999; margin-bottom:20px;">Vous ne recevrez plus de messages ici.</p>
                 <button onclick="toggleMutePath('${path}')" class="btn btn-blue">Réactiver le salon</button>
             </div>`;
-        editor.style.display = 'none';
-        return; // On s'arrête là
+        if(editor) editor.style.display = 'none';
+        return; 
     }
 
-    // 3. SI NON MASQUÉ : Activer l'écouteur en temps réel
-    editor.style.display = 'block'; // On remet l'éditeur
+    // 3. SI NON MASQUÉ
+    if(btnMute) btnMute.innerText = "👁️";
+    if(editor) editor.style.display = 'block';
+
+    // On lance l'écouteur en temps réel
     onValue(ref(db, path), (snap) => {
+        // --- LA SÉCURITÉ ANTI-MÉLANGE ---
+        // Si entre-temps l'utilisateur a changé d'onglet, on ignore la mise à jour
+        if (window.currentPath !== path) {
+            off(ref(db, path)); // On coupe l'écouteur s'il est devenu inutile
+            return;
+        }
+
         let html = "";
         snap.forEach(c => {
             const p = c.val();
-            const postId = c.key;
             const canDelete = (p.senderId === myId || myData.role === 'directeur');
-            const deleteBtn = canDelete ? `<span onclick="deleteMsg('${path}', '${postId}')" style="float:right; cursor:pointer; color:red;">🗑️</span>` : "";
+            const deleteBtn = canDelete ? `<span onclick="deleteMsg('${path}', '${c.key}')" style="float:right; cursor:pointer; color:red;">🗑️</span>` : "";
 
             html = `<div class="post">
                         ${deleteBtn}
@@ -175,7 +202,7 @@ async function loadFeed(path) {
                         ${render(p.text)}
                     </div>` + html;
         });
-        feedDiv.innerHTML = html || "<p style='text-align:center; color:#999; margin:20px;'>Aucun message pour le moment.</p>";
+        feedDiv.innerHTML = html || "<p style='text-align:center; color:#999; margin:20px;'>Aucun message ici.</p>";
     });
 }
 window.sendPost = async () => {
