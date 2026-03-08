@@ -95,7 +95,6 @@ window.doLogin = async () => {
         alert("Erreur : " + err.message);
     }
 };
-            await set(ref(db, `utilisateurs/${user.uid}`), myData);
 
 window.logout = () => {
     set(ref(db, `utilisateurs/${myId}/enLigne`), false);
