@@ -206,3 +206,59 @@ function displayChatMessage(msg, senderRole, isMe){
     </div>`;
     document.getElementById('chat-messages').innerHTML += htmlMsg;
 }
+// --- FONCTION POUR CHARGER LES CONTACTS ---
+function loadContacts() {
+    onValue(ref(db, 'utilisateurs'), (snap) => {
+        let html = "";
+        snap.forEach(childSnap => {
+            const user = childSnap.val();
+            const userId = childSnap.key;
+            if (userId !== myId) { // Ne pas s'afficher soi-même
+                const statusClass = user.enLigne ? 'online' : 'offline';
+                html += `
+                <div class="contact-item" onclick="selectContact('${userId}', '${user.nom}')">
+                    <div class="status-dot" style="background: var(--${statusClass})"></div>
+                    ${escapeHTML(user.nom)} <span class="badge badge-${user.role}">${user.role}</span>
+                </div>`;
+            }
+        });
+        document.getElementById('contact-list').innerHTML = html;
+    });
+}
+
+// --- FONCTION POUR SÉLECTIONNER UN CONTACT ---
+window.selectContact = (id, nom) => {
+    selectedContactId = id;
+    document.getElementById('chat-header').innerText = "Chat avec " + nom;
+    document.getElementById('chat-messages').innerHTML = "";
+    
+    // On crée un ID de chat unique (le plus petit ID en premier pour que ce soit le même pour les deux)
+    const chatId = myId < id ? `${myId}_${id}` : `${id}_${myId}`;
+    
+    off(ref(db, `messages_prives/${chatId}`)); // Nettoie l'ancien écouteur
+    onValue(ref(db, `messages_prives/${chatId}`), (snap) => {
+        document.getElementById('chat-messages').innerHTML = "";
+        snap.forEach(m => {
+            const msg = m.val();
+            displayChatMessage(msg, msg.role, msg.senderId === myId);
+        });
+    });
+};
+
+// --- FONCTION POUR ENVOYER UN MESSAGE PRIVÉ ---
+window.sendPrivateMsg = () => {
+    const text = document.getElementById('chat-input').value;
+    if (!text.trim() || !selectedContactId) return;
+    
+    const chatId = myId < selectedContactId ? `${myId}_${selectedContactId}` : `${selectedContactId}_${myId}`;
+    
+    push(ref(db, `messages_prives/${chatId}`), {
+        senderId: myId,
+        name: myData.nom,
+        role: myData.role,
+        text: text,
+        timestamp: Date.now()
+    });
+    
+    document.getElementById('chat-input').value = "";
+};
