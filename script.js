@@ -187,12 +187,13 @@ window.toggleProfile = () => {
 
 function render(text){
     text = escapeHTML(text); // nettoyer tout le texte utilisateur
-
-    // remplacer uniquement [IMG] et [VID] par du HTML contrôlé
-    text = text.replace(/\[IMG\](.*?)\[\/IMG\]/g, (match, src) => {
-        return `<img src="${src}" class="media-preview" />`;
+    // À l'intérieur de ta fonction qui affiche les messages
+    text = text.replace(/\[AUD\](.*?)\[\/AUD\]/g, (match, src) => {
+        return `<div style="margin-top:10px;">
+                    <audio src="${src}" controls style="width:100%; height:30px;"></audio>
+                </div>`;
     });
-
+    
     text = text.replace(/\[VID\](.*?)\[\/VID\]/g, (match, src) => {
         return `<video src="${src}" controls class="media-preview"></video>`;
     });
@@ -303,3 +304,43 @@ async function autoPurge(path) {
         }
     }
 }
+let mediaRecorder;
+let audioChunks = [];
+
+window.toggleRecord = async () => {
+    const status = document.getElementById('recording-status');
+    const btn = document.getElementById('mic-btn');
+
+    if (!mediaRecorder || mediaRecorder.state === "inactive") {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // On utilise un bitrate faible (16kbps) pour que le fichier soit MINUSCULE
+            mediaRecorder = new MediaRecorder(stream, { audioBitsPerSecond: 16000 });
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    const base64Audio = reader.result;
+                    // On injecte le tag audio dans le champ de texte
+                    document.getElementById('post-text').value += ` [AUD]${base64Audio}[/AUD]`;
+                };
+                status.style.display = 'none';
+                btn.style.filter = "none";
+            };
+
+            mediaRecorder.start();
+            status.style.display = 'inline';
+            btn.style.filter = "drop-shadow(0 0 5px red)"; // Effet visuel "Enregistre"
+        } catch (err) {
+            alert("Microphone refusé ou non trouvé.");
+        }
+    } else {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    }
+};
