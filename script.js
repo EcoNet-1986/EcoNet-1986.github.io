@@ -1,25 +1,19 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, set, get, child, push, onValue, off, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-
 const firebaseConfig = {
     apiKey: "AIzaSyCV8R0gETJdLjrnBRY3TAZ61AWRANLFApE",
     authDomain: "econet-2ff67.firebaseapp.com",
     databaseURL: "https://econet-2ff67-default-rtdb.europe-west1.firebasedatabase.app/", 
     projectId: "econet-2ff67"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
-
-// Variables globales
 window.currentPath = "posts-public"; 
 let myId = "", myData = null, selectedContactId = null;
 let localMutedSalons = {}; 
-
-// --- AUTHENTIFICATION ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         const snap = await get(child(ref(db), `utilisateurs/${user.uid}`));
@@ -36,13 +30,11 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('screen-app').style.display = 'none';
     }
 });
-
 window.doLogin = async () => {
     try {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
         const snapUser = await get(child(ref(db), `utilisateurs/${user.uid}`));
-        
         if (!snapUser.exists()) {
             const rolesValides = ["eleve", "parent", "professeur", "directeur"];
             let roleChoisi = "";
@@ -65,50 +57,34 @@ window.doLogin = async () => {
         startApp();
     } catch(err) { alert("Erreur: " + err.message); }
 };
-
 window.logout = () => {
     set(ref(db, `utilisateurs/${myId}/enLigne`), false);
     signOut(auth).then(() => location.reload());
 };
-
-// --- INITIALISATION ---
 function startApp() {
     set(ref(db, `utilisateurs/${myId}/enLigne`), true);
     onDisconnect(ref(db, `utilisateurs/${myId}/enLigne`)).set(false);
-    
-    // Écoute permanente des salons masqués pour le cache
     onValue(ref(db, `utilisateurs/${myId}/salons_masques`), (snap) => {
         localMutedSalons = snap.val() || {};
         if(window.currentPath !== 'chat') loadFeed(window.currentPath);
     });
-
     if (myData.role === 'professeur' || myData.role === 'directeur') document.getElementById('tab-posts-staff').style.display = 'block';
     if (['parent', 'professeur', 'directeur'].includes(myData.role)) document.getElementById('tab-posts-parents').style.display = 'block';
-
     document.getElementById('prof-name').innerText = myData.nom;
     document.getElementById('prof-badge').innerHTML = `<span class="badge badge-${myData.role}">${myData.role}</span>`;
     document.getElementById('screen-login').style.display = 'none';
     document.getElementById('screen-app').style.display = 'block';
     window.switchMainTab('posts-public');
 }
-
-// --- NAVIGATION (RÈGLE LE BUG DE LA VIDÉO) ---
 window.switchMainTab = (path) => {
-    // 1. Désactive l'ancien écouteur pour éviter le mélange de données
     off(ref(db, window.currentPath)); 
-    
     window.currentPath = path;
-    
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('tab-' + path)?.classList.add('active');
-
+    document.getElementById('tab-' + path)?.classList.add('active'))
     const feedView = document.getElementById('view-feed');
     const chatView = document.getElementById('view-chat');
     const editor = document.getElementById('editor-container');
-    
-    // Vide l'écran pour éviter de voir les messages du salon précédent
     document.getElementById('feed-content').innerHTML = ""; 
-
     if (path === 'chat') {
         feedView.style.display = 'none';
         editor.style.display = 'none';
@@ -120,58 +96,37 @@ window.switchMainTab = (path) => {
         loadFeed(path);
     }
 };
-
 async function loadFeed(path) {
     const feedDiv = document.getElementById('feed-content');
     const editor = document.getElementById('editor-container');
     const btnMute = document.getElementById('btn-mute');
-    
-    // 1. Nettoyage de l'ancien écouteur pour éviter les doublons
     off(ref(db, path)); 
-
-    // 2. Gestion du salon masqué (Mute)
     if (localMutedSalons[path]) {
         btnMute.innerText = "🚫";
         feedDiv.innerHTML = `<div class="mute-screen">🔇<br>Salon masqué<br><button class="btn btn-blue" onclick="toggleMutePath('${path}')">Réactiver</button></div>`;
         editor.style.display = 'none';
         return;
     }
-
     btnMute.innerText = "👁️";
-
-    // 3. LOGIQUE DES PERMISSIONS D'ÉCRITURE
     let canWrite = true;
-
-    // Seuls les profs et le directeur écrivent dans "Cours"
     if (path === 'posts-cours' && !['professeur', 'directeur'].includes(myData.role)) {
         canWrite = false;
     }
-    // Seul le directeur écrit dans "Info"
     else if (path === 'posts-info' && myData.role !== 'directeur') {
         canWrite = false;
     }
-    // Seul le staff écrit dans "Staff" (déjà filtré par l'onglet, mais sécurité en plus)
     else if (path === 'posts-staff' && !['professeur', 'directeur'].includes(myData.role)) {
         canWrite = false;
     }
-
-    // Afficher ou cacher l'éditeur selon les droits
     editor.style.display = canWrite ? 'block' : 'none';
-
-    // 4. CHARGEMENT DES MESSAGES EN TEMPS RÉEL
     onValue(ref(db, path), (snap) => {
-        // Sécurité : on vérifie qu'on est toujours sur le bon onglet
         if (window.currentPath !== path) return;
-
         let html = "";
         snap.forEach(childSnap => {
             const p = childSnap.val();
             const msgId = childSnap.key;
-            
-            // Le directeur peut tout supprimer, l'auteur peut supprimer son propre message
             const canDelete = (p.senderId === myId || myData.role === 'directeur');
             const delBtn = canDelete ? `<span onclick="deleteMsg('${path}', '${msgId}')" style="float:right; cursor:pointer; color:red; font-size:18px;">🗑️</span>` : "";
-            
             html = `
                 <div class="post">
                     ${delBtn}
@@ -181,12 +136,9 @@ async function loadFeed(path) {
                 </div>
             ` + html; // Nouveau message en haut
         });
-
         feedDiv.innerHTML = html || "<p style='text-align:center; color:#999; margin-top:20px;'>Aucun message dans ce salon.</p>";
     });
 }
-
-// --- ENVOI DE MESSAGES ---
 window.sendPost = async () => {
     const val = document.getElementById('post-text').value;
     if (!val.trim()) return;
@@ -198,10 +150,7 @@ window.sendPost = async () => {
         autoPurge(window.currentPath);
     } catch(e) { alert("Erreur d'envoi"); }
 };
-
-// --- FONCTIONS SECONDAIRES ---
 function escapeHTML(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
-
 function render(t){
     t = escapeHTML(t);
     t = t.replace(/\[AUD\](.*?)\[\/AUD\]/g, (m,s) => `<audio src="${s}" controls style="width:100%; height:30px;"></audio>`);
@@ -209,17 +158,13 @@ function render(t){
     t = t.replace(/\[VID\](.*?)\[\/VID\]/g, (m,s) => `<video src="${s}" controls class="media-preview"></video>`);
     return t;
 }
-
 window.deleteMsg = async (path, id) => {
     if (confirm("Supprimer ce message ?")) await set(ref(db, `${path}/${id}`), null);
 };
-
 window.toggleMutePath = async (path) => {
     const isMuted = localMutedSalons[path];
     await set(ref(db, `utilisateurs/${myId}/salons_masques/${path}`), isMuted ? null : true);
 };
-
-// --- CHAT PRIVÉ ---
 function loadContacts() {
     onValue(ref(db, 'utilisateurs'), async (snap) => {
         const mutesSnap = await get(ref(db, `utilisateurs/${myId}/contacts_masques`));
@@ -236,7 +181,6 @@ function loadContacts() {
         document.getElementById('contact-list').innerHTML = html;
     });
 }
-
 window.selectContact = (id, nom) => {
     selectedContactId = id;
     const chatId = myId < id ? `${myId}_${id}` : `${id}_${myId}`;
@@ -251,7 +195,6 @@ window.selectContact = (id, nom) => {
         });
     });
 };
-
 window.sendPrivateMsg = () => {
     const text = document.getElementById('chat-input').value;
     if (!text.trim() || !selectedContactId) return;
@@ -259,7 +202,6 @@ window.sendPrivateMsg = () => {
     push(ref(db, `messages_prives/${chatId}`), { senderId: myId, name: myData.nom, text: text, timestamp: Date.now() });
     document.getElementById('chat-input').value = "";
 };
-
 async function autoPurge(path) {
     const snap = await get(ref(db, path));
     if (snap.exists() && snap.size > 30) {
@@ -268,7 +210,6 @@ async function autoPurge(path) {
         for (let i = 0; i < entries.length - 30; i++) await set(ref(db, `${path}/${entries[i]}`), null);
     }
 }
-
 window.toggleProfile = () => {
     const m = document.getElementById('modal-profile'), o = document.getElementById('overlay');
     const isHidden = m.style.display === 'none' || m.style.display === '';
