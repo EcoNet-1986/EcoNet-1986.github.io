@@ -80,7 +80,7 @@ window.switchMainTab = (path) => {
     off(ref(db, window.currentPath)); 
     window.currentPath = path;
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('tab-' + path)?.classList.add('active'))
+    document.getElementById('tab-' + path)?.classList.add('active');
     const feedView = document.getElementById('view-feed');
     const chatView = document.getElementById('view-chat');
     const editor = document.getElementById('editor-container');
