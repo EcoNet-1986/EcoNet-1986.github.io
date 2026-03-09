@@ -215,3 +215,39 @@ window.toggleProfile = () => {
     const isHidden = m.style.display === 'none' || m.style.display === '';
     m.style.display = o.style.display = isHidden ? 'block' : 'none';
 };
+// --- GESTION DES FICHIERS (IMAGES/VIDÉOS) ---
+window.handleFile = (input, targetId) => {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const type = file.type.startsWith('image') ? 'IMG' : (file.type.startsWith('video') ? 'VID' : 'AUD');
+        document.getElementById(targetId).value += `[${type}]${e.target.result}[/${type}]`;
+    };
+    reader.readAsDataURL(file);
+};
+
+// --- GESTION DU MICRO ---
+let mediaRecorder, audioChunks = [];
+window.toggleRecord = async () => {
+    const btn = document.getElementById('mic-btn');
+    const status = document.getElementById('recording-status');
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const reader = new FileReader();
+                reader.onload = (e) => document.getElementById('post-text').value += `[AUD]${e.target.result}[/AUD]`;
+                reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
+                status.style.display = 'none';
+                btn.innerText = '🎤';
+            };
+            mediaRecorder.start();
+            status.style.display = 'inline';
+            btn.innerText = '🛑';
+        } catch(e) { alert("Micro non autorisé"); }
+    } else { mediaRecorder.stop(); }
+};
