@@ -16,6 +16,12 @@ h3{
     color:blue;
     text-align: center;
 }
+h3.ex {
+    color: #6A1B9A; /* Un beau violet foncé */
+    font-style: italic; /* Optionnel : l'italique aide à différencier */
+    text-decoration: underline; /* Optionnel : pour bien marquer la section */
+}
+
 table{
 width:100% ;
 height:200px ;
