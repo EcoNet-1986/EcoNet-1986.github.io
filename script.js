@@ -12,7 +12,10 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 window.currentPath = "posts-public"; 
-let myId = "", myData = null, selectedContactId = null;
+let myId = "anon-001";
+let myData = { nom: "Utilisateur Anonyme", role: "eleve", enLigne: true, email: "anon@ecodet.local" };
+let selectedContactId = null;
+
 let localMutedSalons = {}; 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -20,46 +23,28 @@ onAuthStateChanged(auth, async (user) => {
         if (snap.exists()) {
             myId = user.uid;
             myData = snap.val();
-            startApp();
         } else {
-            document.getElementById('screen-login').style.display = 'block';
-            document.getElementById('screen-app').style.display = 'none';
+            myId = "anon-001";
+            myData = { nom: user.displayName, role: "eleve", enLigne: true, email: user.email };
         }
     } else {
-        document.getElementById('screen-login').style.display = 'block';
-        document.getElementById('screen-app').style.display = 'none';
+        myId = "anon-001";
+        myData = { nom: "Utilisateur Anonyme", role: "eleve", enLigne: true, email: "anon@ecodet.local" };
     }
+    startApp();
 });
 window.doLogin = async () => {
-    try {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        const snapUser = await get(child(ref(db), `utilisateurs/${user.uid}`));
-        if (!snapUser.exists()) {
-            const rolesValides = ["eleve", "parent", "professeur", "directeur"];
-            let roleChoisi = "";
-            while(!rolesValides.includes(roleChoisi)){
-                roleChoisi = prompt("Rôle ? (eleve, parent, professeur, directeur)")?.toLowerCase().trim();
-            }
-            if(roleChoisi !== "eleve") {
-                const snapCodes = await get(ref(db, `codes/${roleChoisi}`));
-                if(prompt(`Code ${roleChoisi}`) !== snapCodes.val()) {
-                    await signOut(auth);
-                    return;
-                }
-            }
-            myData = { nom: user.displayName, role: roleChoisi, enLigne: true, email: user.email };
-            await set(ref(db, `utilisateurs/${user.uid}`), myData);
-        } else { 
-            myData = snapUser.val(); 
-        }
-        myId = user.uid;
-        startApp();
-    } catch(err) { alert("Erreur: " + err.message); }
+    // Bypass auth: just initialize with default user
+    myId = "anon-001";
+    myData = { nom: "Utilisateur Anonyme", role: "eleve", enLigne: true, email: "anon@ecodet.local" };
+    startApp();
 };
 window.logout = () => {
-    set(ref(db, `utilisateurs/${myId}/enLigne`), false);
-    signOut(auth).then(() => location.reload());
+    // Bypass: just reset UI to login screen
+    document.getElementById('screen-login').style.display = 'block';
+    document.getElementById('screen-app').style.display = 'none';
+    myId = "anon-001";
+    myData = { nom: "Utilisateur Anonyme", role: "eleve", enLigne: true, email: "anon@ecodet.local" };
 };
 function startApp() {
     set(ref(db, `utilisateurs/${myId}/enLigne`), true);
